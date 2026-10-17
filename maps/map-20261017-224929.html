@@ -1,0 +1,1529 @@
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>My QGIS Map</title><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Arial,sans-serif;background:#0f172a;overflow:hidden}
+
+.hdr{position:fixed;top:0;left:0;right:0;height:52px;z-index:3000;
+  background:linear-gradient(135deg,#1e3a8a,#1e64c8);
+  display:flex;align-items:center;justify-content:space-between;padding:0 10px;
+  box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.hdr-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
+.hdr h1{font-size:.92rem;font-weight:700;color:white;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hdr p{font-size:.62rem;color:rgba(255,255,255,.7)}
+.hdr-btns{display:flex;gap:6px;flex-shrink:0}
+.hbtn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
+  color:white;padding:6px 11px;border-radius:6px;cursor:pointer;font-size:.76rem;white-space:nowrap}
+.hbtn:active{background:rgba(255,255,255,.3)}
+.ham{display:none;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
+  color:white;width:44px;height:44px;border-radius:6px;cursor:pointer;font-size:1.2rem;
+  align-items:center;justify-content:center;flex-shrink:0}
+
+#map{position:fixed;top:52px;left:260px;right:0;bottom:22px}
+
+.sidebar{position:fixed;top:52px;left:0;width:260px;bottom:22px;z-index:2000;
+  background:#0f172a;border-right:1px solid #1e293b;display:flex;flex-direction:column;
+  transition:transform .25s ease}
+.tabs{display:flex;border-bottom:1px solid #1e293b;flex-shrink:0}
+.tab{flex:1;padding:9px 2px;text-align:center;font-size:.7rem;color:#64748b;
+  cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;user-select:none}
+.tab.on{color:#3b82f6;border-bottom-color:#3b82f6;font-weight:700;background:#0f1f3a}
+.pane{display:none;flex:1;overflow-y:auto;overflow-x:hidden;padding:10px;-webkit-overflow-scrolling:touch}
+.pane.on{display:block}
+
+.lcard{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:9px;margin-bottom:8px}
+.lhead{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.ldot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.lname{font-size:.82rem;font-weight:600;color:#e2e8f0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ltag{font-size:.6rem;color:#64748b;background:#0f172a;border-radius:4px;padding:1px 5px}
+.lrow{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+.llbl{font-size:.68rem;color:#94a3b8}
+.tog{position:relative;width:40px;height:22px}
+.tog input{opacity:0;width:0;height:0}
+.sl{position:absolute;inset:0;background:#475569;border-radius:20px;cursor:pointer;transition:.2s}
+.sl:before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:white;border-radius:50%;transition:.2s}
+input:checked+.sl{background:#3b82f6}
+input:checked+.sl:before{transform:translateX(18px)}
+.oprow{display:flex;align-items:center;gap:6px}
+.oplbl{font-size:.65rem;color:#64748b;flex-shrink:0}
+input[type=range]{flex:1;height:4px;accent-color:#3b82f6;cursor:pointer}
+.opval{font-size:.65rem;color:#94a3b8;width:28px;text-align:right;flex-shrink:0}
+.lcnt{font-size:.65rem;color:#64748b;text-align:right;margin-top:3px}
+
+.sbox{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:9px;margin-bottom:8px}
+.stitle{font-size:.78rem;font-weight:700;margin-bottom:6px}
+.srow{display:flex;justify-content:space-between;font-size:.74rem;padding:3px 0;border-bottom:1px solid #334155}
+.srow:last-child{border:none}
+.sk{color:#94a3b8}.sv{color:#e2e8f0;font-weight:600}
+
+.sinp{width:100%;background:#1e293b;border:1px solid #334155;border-radius:7px;
+  padding:8px 10px;color:#e2e8f0;font-size:.84rem;outline:none;margin-bottom:6px}
+.sinp:focus{border-color:#3b82f6}
+.sres{background:#1e293b;border:1px solid #334155;border-radius:7px;
+  max-height:240px;overflow-y:auto;display:none;-webkit-overflow-scrolling:touch}
+.sitem{padding:9px 10px;font-size:.78rem;cursor:pointer;border-bottom:1px solid #334155;color:#e2e8f0}
+.sitem:active{background:#3b82f6;color:white}
+.sitem:last-child{border:none}
+.slyr{font-size:.65rem;color:#94a3b8;margin-top:2px}
+
+.tlsel{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+.tlbtn{border:none;border-radius:5px;padding:5px 10px;font-size:.72rem;cursor:pointer;color:white}
+.twrap{overflow:auto;max-height:calc(100vh - 220px);-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:.72rem}
+th{background:#1e3a8a;color:white;padding:5px 8px;text-align:left;white-space:nowrap;position:sticky;top:0}
+td{padding:5px 8px;border-bottom:1px solid #1e293b;color:#e2e8f0;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis}
+tr:active td{background:#1e3a5a}
+.pgbar{display:flex;align-items:center;gap:4px;margin:6px 0;flex-wrap:wrap}
+.pgbtn{background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:.7rem}
+.pgbtn:disabled{opacity:.4;cursor:not-allowed}
+.pglbl{font-size:.7rem;color:#94a3b8;padding:0 4px}
+
+.fi{position:fixed;bottom:30px;left:270px;z-index:2500;background:white;
+  border-radius:10px;width:270px;max-height:300px;overflow:hidden;
+  box-shadow:0 4px 20px rgba(0,0,0,.3);display:none;flex-direction:column}
+@media(max-width:768px){
+  /* Hide desktop sidebar toggle arrow on mobile */
+  #desk-toggle{ display:none !important; }
+  .fi{
+    left:0!important;right:0!important;bottom:56px!important;
+    width:100%!important;max-width:100%!important;
+    height:50vh!important;max-height:85vh!important;
+    border-radius:16px 16px 0 0!important;
+    box-shadow:0 -4px 24px rgba(0,0,0,.25)!important;
+    transition:height .2s ease;
+  }
+  .fibody{
+    overflow-y:scroll!important;
+    -webkit-overflow-scrolling:touch!important;
+    flex:1!important;
+    height:calc(100% - 90px)!important;
+  }
+}
+.fi.on{display:flex}
+.fihdr{background:#1e3a8a;color:white;padding:8px 12px;border-radius:10px 10px 0 0;
+  display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.fihdr h3{font-size:.85rem;font-weight:700}
+.ficls{background:none;border:none;color:white;font-size:1.2rem;cursor:pointer;padding:8px 12px;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center}
+.fibody{overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch}
+.filyr{border-bottom:1px solid #f0f4ff}
+.filhdr{background:#eff6ff;padding:6px 12px;font-size:.72rem;font-weight:700;color:#1e40af;display:flex;align-items:center;gap:5px}
+.fidot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.firow{display:flex;padding:4px 12px;border-bottom:1px solid #f8fafc;font-size:.75rem}
+.fik{color:#64748b;min-width:75px;flex-shrink:0;font-size:.7rem}
+.fiv{color:#1e293b;font-weight:500;word-break:break-all}
+.fimt{padding:8px 12px;color:#94a3b8;font-size:.75rem;font-style:italic}
+
+/* ── Mobile bottom sheet ── */
+@media(max-width:768px){
+  .fi{
+    left:0!important;right:0!important;bottom:0!important;
+    width:100%!important;max-height:70vh!important;
+    border-radius:18px 18px 0 0!important;
+    box-shadow:0 -4px 24px rgba(0,0,0,.35)!important;
+    transform:translateY(100%);
+    transition:transform .3s cubic-bezier(.4,0,.2,1);
+    display:flex!important;
+    flex-direction:column;
+  }
+  .fi.on{transform:translateY(0)!important;}
+  .fi-handle{display:flex;justify-content:center;padding:10px 0 4px;cursor:pointer;flex-shrink:0}
+  .fi-handle-bar{width:40px;height:4px;background:rgba(255,255,255,.5);border-radius:4px}
+  .fihdr{border-radius:0!important;padding:6px 16px 10px;}
+  .fihdr h3{font-size:1rem}
+  .ficls{font-size:1.4rem;padding:10px 14px;min-width:48px;min-height:48px}
+  .firow{padding:10px 16px;font-size:.88rem}
+  .fik{min-width:100px;font-size:.8rem}
+  .filhdr{padding:10px 16px;font-size:.8rem}
+  .fimt{padding:12px 16px;font-size:.85rem}
+}
+/* hide handle on desktop */
+.fi-handle{display:none}
+
+.bmwrap{position:absolute;top:10px;right:10px;z-index:1000}
+.bmbtn{background:white;border:2px solid rgba(0,0,0,.2);border-radius:6px;
+  padding:6px 12px;cursor:pointer;font-size:.78rem;font-weight:600;color:#334155;
+  box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.bmpanel{display:none;position:absolute;right:0;top:38px;background:white;
+  border-radius:8px;padding:12px 14px;min-width:190px;
+  box-shadow:0 4px 20px rgba(0,0,0,.2);z-index:1001}
+.bmpanel.on{display:block}
+.bmpanel h4{font-size:.7rem;text-transform:uppercase;letter-spacing:.8px;color:#64748b;
+  font-weight:700;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid #e2e8f0}
+.bmopt{display:flex;align-items:center;gap:8px;padding:6px 4px;cursor:pointer;border-radius:4px}
+.bmopt:active{background:#eff6ff}
+.bmopt input{accent-color:#1e64c8;width:16px;height:16px}
+.bmopt label{font-size:.84rem;color:#334155;cursor:pointer;flex:1}
+.bmopt.cur label{color:#1e64c8;font-weight:700}
+
+.coord{position:fixed;bottom:0;left:260px;right:0;background:rgba(15,23,42,.95);
+  color:#64748b;font-size:.68rem;padding:4px 12px;z-index:1000;
+  border-top:1px solid #1e293b;pointer-events:none;height:22px;display:flex;align-items:center}
+
+/* ── Mobile bottom toolbar ── */
+.mob-toolbar{display:none}
+@media(max-width:768px){
+  .mob-toolbar{
+    display:flex;
+    position:fixed;bottom:0;left:0;right:0;
+    height:56px;z-index:3000;
+    background:#0f172a;
+    border-top:1px solid #1e3a8a;
+    align-items:center;
+    justify-content:space-around;
+    padding:0 8px;
+  }
+  .mtool{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:3px;flex:1;height:100%;
+    background:none;border:none;color:#94a3b8;
+    font-size:.6rem;cursor:pointer;
+    border-radius:8px;padding:6px 4px;
+    transition:background .15s,color .15s;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .mtool:active,.mtool.active{background:#1e3a8a;color:#60a5fa}
+  .mtool svg{width:22px;height:22px;flex-shrink:0}
+  /* push map and coord up so toolbar doesn't overlap */
+  #map{bottom:56px!important}
+  .coord{display:none!important}
+}
+
+.sb-overlay{display:none;position:fixed;inset:0;z-index:1999;background:rgba(0,0,0,.45)}
+.sb-overlay.on{display:block}
+
+@media(max-width:768px){
+  .ham{display:flex}
+  #map{left:0!important;top:52px;bottom:48px;right:0}
+  .coord{left:0;bottom:0;height:48px;font-size:.72rem;padding:0 14px}
+  .sidebar{transform:translateX(-100%);width:88vw;max-width:320px;bottom:48px;
+    box-shadow:4px 0 24px rgba(0,0,0,.6)}
+  .sidebar.open{transform:translateX(0)}
+  .tab{padding:16px 2px;font-size:.82rem;min-height:48px;display:flex;align-items:center;justify-content:center}
+  /* fi handled by dedicated mobile bottom-sheet block above */
+  .bmpanel{right:auto;left:0;min-width:210px}
+  .hbtn{padding:8px 10px;font-size:.78rem}
+  .tog{width:52px;height:32px}
+  .sl:before{width:24px;height:24px;top:4px;left:4px}
+  input:checked+.sl:before{transform:translateX(20px)}
+  input[type=range]{height:6px}
+  .pgbtn{padding:12px 16px;font-size:.82rem;min-height:44px}
+  .sitem{padding:16px 14px;font-size:.88rem;min-height:48px}
+  .bmopt{padding:14px 8px;min-height:48px}
+  .bmopt label{font-size:.95rem}
+}
+
+@media print{
+  .sidebar,.hdr-btns,.bmwrap,.fi,.coord,.ham,.sb-overlay{display:none!important}
+  #map{left:0!important;top:0!important;bottom:0!important;right:0!important}
+}
+</style>
+</head>
+<body class="">
+
+<div class="hdr">
+  <div class="hdr-left">
+    <button class="ham" id="ham-btn" onclick="toggleSidebar()">☰</button>
+    <div>
+      <h1>🗺 My QGIS Map</h1>      <p>1 layer(s) · 145 features · Instant WebGIS Viewer</p>    </div>
+  </div>
+  <div class="hdr-btns">
+    <button class="hbtn" onclick="window.print()">🖨 Print</button>
+    <button class="hbtn" id="share-btn" onclick="openShare()">📱 Share / QR</button>
+  </div>
+</div>
+
+<div class="sb-overlay" id="sb-overlay" onclick="closeSidebar()"></div>
+
+<div class="sidebar" id="sidebar" style="left: 0px;">
+  <div class="tabs">
+    <div class="tab on" id="t-layers" onclick="showTab('layers')">Layers</div>
+    <div class="tab" id="t-stats" onclick="showTab('stats')">Stats</div>
+    <div class="tab" id="t-search" onclick="showTab('search')">Search</div>
+    <div class="tab" id="t-table" onclick="showTab('table')">Table</div>
+  </div>
+  <div class="pane on" id="p-layers"><div id="lctrl"></div></div>
+  <div class="pane" id="p-stats"><div id="sctrl"></div></div>
+  <div class="pane" id="p-search">
+    <input class="sinp" id="sinp" placeholder="Search any attribute value..." oninput="doSearch(this.value)">
+    <div class="sres" id="sres"></div>
+    <div id="sinfo" style="font-size:.72rem;color:#64748b;margin-top:4px">Search across all layers</div>
+  </div>
+  <div class="pane" id="p-table">
+    <div class="tlsel" id="tlsel"></div>
+    <div class="twrap" id="twrap"></div>
+  </div>
+</div>
+
+<div id="map" class="leaflet-container leaflet-touch leaflet-retina leaflet-fade-anim leaflet-grab leaflet-touch-drag leaflet-touch-zoom" tabindex="0" style="left: 260px; outline-style: none;"><div class="bmwrap" id="bmwrap">
+    <button class="bmbtn" onclick="toggleBM()" style="">🗺 Base Layers ▼</button>
+    <div class="bmpanel" id="bmpanel">
+      <h4>Base Layers</h4>
+      <div class="bmopt"><input type="radio" name="bm" id="b0" checked="" onchange="setBM(0)"><label for="b0">OSM Street Map</label></div>
+      <div class="bmopt"><input type="radio" name="bm" id="b1" onchange="setBM(1)"><label for="b1">USGS Imagery</label></div>
+      <div class="bmopt"><input type="radio" name="bm" id="b2" onchange="setBM(2)"><label for="b2">OSM Topographic</label></div>
+      <div class="bmopt"><input type="radio" name="bm" id="b3" onchange="setBM(3)"><label for="b3">Carto Dark</label></div>
+      <div class="bmopt"><input type="radio" name="bm" id="b4" onchange="setBM(4)"><label for="b4">Carto Light</label></div>
+      <div class="bmopt cur"><input type="radio" name="bm" id="b5" onchange="setBM(5)"><label for="b5">ESRI World Street</label></div>
+      <div class="bmopt"><input type="radio" name="bm" id="b6" onchange="setBM(6)"><label for="b6">ESRI World Imagery</label></div>
+      <div class="bmopt"><input type="radio" name="bm" id="b7" onchange="setBM(7)"><label for="b7">OSM BrightGray</label></div>
+      <div class="bmopt"><input type="radio" name="bm" id="b8" onchange="setBM(8)"><label for="b8">No Basemap</label></div>
+    </div>
+  </div></div>
+
+<div class="fi" id="fi">
+  <!-- Drag handle bar - touch and drag UP to expand -->
+  <div id="fi-drag-handle" style="
+    display:flex;justify-content:center;align-items:center;
+    padding:10px 0 6px;cursor:grab;touch-action:none;
+    background:transparent">
+    <div style="width:48px;height:5px;background:#94a3b8;border-radius:3px"></div>
+  </div>
+  <div class="fihdr">
+    <h3>📍 Feature Info</h3>
+    <button class="ficls" onclick="closeFI()">✕</button>
+  </div>
+  <div class="fibody" id="fibody"></div>
+</div>
+
+<div class="coord" id="coord" style="left: 260px;">Lat: 51.849353   Lng: 5.179747   Zoom: 8</div>
+
+<!-- Inline data — compressed Gzip Base64 script tag -->
+<script id="qsm-data-gzip" type="text/plain">
+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</script><script id="qsm-opts" type="application/json">
+{"stats": true, "search": true, "table": true, "measure": true, "print": true}</script><!-- Inline app logic — embedded at export time -->
+<script>
+/* Quick Share Map App - map_app.js */
+/* Quick Share Map App */
+/* Quick Share Map - map_app.js */
+
+// Global variables
+var LAYERS  = [];
+var OPTIONS = {};
+var map;
+var curBM;
+var gLayers  = [];
+var allFeats = [];
+var bounds   = null;
+
+var PALETTE = ['#1e64c8','#e05c2a','#27a845','#8b2fc9',
+               '#c8a01e','#c8285a','#1ec8b4','#6e6e6e'];
+
+var isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (screen.width <= 768);
+
+// -- Sidebar toggle (mobile + desktop) ----------------------------------------
+var sidebarOpen = true;
+
+// Helper function to decompress Gzip Base64
+async function decompressGeoJSON(base64Data) {
+  const binaryString = atob(base64Data);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  const stream = new Response(bytes).body.pipeThrough(new DecompressionStream("gzip"));
+  const decompressedResponse = new Response(stream);
+  const text = await decompressedResponse.text();
+  return JSON.parse(text);
+}
+
+function _syncSidebarState() {
+  var sb  = document.getElementById('sidebar');
+  var mapEl = document.getElementById('map');
+  var crd = document.getElementById('coord');
+  var ov  = document.getElementById('sb-overlay');
+  if (!sb) return;
+
+  if (isMobile) {
+    sb.classList.remove('open');
+    sb.style.transform = '';
+    if (ov) { ov.classList.remove('on'); ov.style.display = ''; }
+    if (mapEl) mapEl.style.left = '';
+    if (crd) crd.style.left = '';
+  } else {
+    sidebarOpen = true;
+    sb.style.transform  = '';
+    sb.style.left       = '0';
+    if (mapEl) mapEl.style.left = '260px';
+    if (crd) crd.style.left = '260px';
+    setTimeout(function() {
+      var dtBtn = document.getElementById('desk-toggle');
+      if (dtBtn) {
+        dtBtn.style.left    = '260px';
+        dtBtn.innerHTML     = '&#9664;';
+      }
+    }, 100);
+  }
+}
+
+function toggleSidebar() {
+  var sb = document.getElementById('sidebar');
+  var ov = document.getElementById('sb-overlay');
+  if (!sb) return;
+  if (isMobile) {
+    if (sb.classList.contains('open')) {
+      sb.classList.remove('open');
+      if (ov) ov.classList.remove('on');
+    } else {
+      sb.classList.add('open');
+      if (ov) ov.classList.add('on');
+    }
+  } else {
+    sidebarOpen = !sidebarOpen;
+    _applyDesktopSidebar();
+  }
+}
+
+function _applyDesktopSidebar() {
+  var sb  = document.getElementById('sidebar');
+  var mapEl = document.getElementById('map');
+  var crd = document.getElementById('coord');
+  var btn = document.getElementById('desk-toggle');
+  var dtb = document.getElementById('desk-toggle');
+  if (sidebarOpen) {
+    sb.style.transform  = '';
+    if (mapEl) mapEl.style.left = '260px';
+    if (crd) crd.style.left = '260px';
+    if (btn) btn.innerHTML  = '&#9664;';
+    if (btn) btn.title      = 'Collapse sidebar';
+    if (dtb) { dtb.style.left = '260px'; dtb.innerHTML = '&#9664;'; }
+  } else {
+    sb.style.transform  = 'translateX(-260px)';
+    if (mapEl) mapEl.style.left = '0';
+    if (crd) crd.style.left = '0';
+    if (btn) btn.innerHTML  = '&#9654;';
+    if (btn) btn.title      = 'Expand sidebar';
+    if (dtb) { dtb.style.left = '0'; dtb.innerHTML = '&#9654;'; }
+  }
+  setTimeout(function(){ if(window.MAP) window.MAP.invalidateSize(); }, 260);
+}
+
+function closeSidebar() {
+  var sb = document.getElementById('sidebar');
+  var ov = document.getElementById('sb-overlay');
+  if (sb) sb.classList.remove('open');
+  if (ov) ov.classList.remove('on');
+}
+
+// -- Tabs ----------------------------------------------------------------------
+function showTab(n) {
+  ['layers','stats','search','table'].forEach(function(x) {
+    var t = document.getElementById('t-' + x);
+    var p = document.getElementById('p-' + x);
+    if (t) t.classList.toggle('on', x === n);
+    if (p) p.classList.toggle('on', x === n);
+  });
+}
+
+// -- Basemaps ------------------------------------------------------------------
+var BMS = [
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {attribution:'&copy; OpenStreetMap',maxZoom:19}),
+  L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}',
+    {attribution:'&copy; USGS',maxZoom:16}),
+  L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    {attribution:'&copy; OpenTopoMap',maxZoom:17}),
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    {attribution:'&copy; Carto',maxZoom:20}),
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    {attribution:'&copy; Carto',maxZoom:20}),
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+    {attribution:'&copy; Esri',maxZoom:19}),
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {attribution:'&copy; Esri',maxZoom:19}),
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    {attribution:'&copy; Carto',maxZoom:20}),
+  null
+];
+
+// -- Basemap toggle ------------------------------------------------------------
+var curBMi = 0;
+function setBM(i) {
+  if (curBM && map) map.removeLayer(curBM);
+  curBM = BMS[i]; curBMi = i;
+  if (curBM && map) curBM.addTo(map);
+  document.querySelectorAll('.bmopt').forEach(function(el, j) {
+    el.classList.toggle('cur', j === i);
+  });
+  document.getElementById('bmpanel').classList.remove('on');
+}
+function toggleBM() {
+  document.getElementById('bmpanel').classList.toggle('on');
+}
+document.addEventListener('click', function(e) {
+  var w = document.getElementById('bmwrap');
+  if (w && !w.contains(e.target))
+    document.getElementById('bmpanel').classList.remove('on');
+});
+
+// -- Feature Info --------------------------------------------------------------
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function showFI(feats) {
+  var h = '';
+  feats.forEach(function(f) {
+    var entries = [];
+    Object.keys(f.props || {}).forEach(function(k) {
+      var v = f.props[k];
+      if (v !== null && v !== undefined && String(v).trim() !== '')
+        entries.push([k, v]);
+    });
+    h += '<div class="filyr"><div class="filhdr">' +
+         '<div class="fidot" style="background:' + f.color + '"></div>' +
+         escHtml(f.name) + '</div>';
+    if (!entries.length) {
+      h += '<div class="fimt">No attributes</div>';
+    } else {
+      entries.forEach(function(kv) {
+        h += '<div class="firow"><span class="fik">' + escHtml(String(kv[0])) +
+             '</span><span class="fiv">' + escHtml(String(kv[1])) + '</span></div>';
+      });
+    }
+    h += '</div>';
+  });
+  document.getElementById('fibody').innerHTML = h;
+  var fiPanel = document.getElementById('fi');
+  fiPanel.style.display = '';
+  fiPanel.classList.add('on');
+  if (isMobile) {
+    var fi = document.getElementById('fi');
+    if (fi) setTimeout(function(){ fi.scrollIntoView({behavior:'smooth', block:'nearest'}); }, 100);
+  }
+}
+function closeFI() { document.getElementById('fi').classList.remove('on'); }
+
+// -- Mobile toolbar tool switching ---------------------------------------------
+var mobileTool = 'info';
+function setMobileTool(tool) {
+  mobileTool = tool;
+  ['info','search','layers','table'].forEach(function(t) {
+    var btn = document.getElementById('mtool-' + t);
+    if (btn) btn.classList.toggle('active', t === tool);
+  });
+  if (tool === 'search') {
+    toggleSidebar(); showTab('search');
+    setTimeout(function(){ var s=document.getElementById('sinp'); if(s) s.focus(); }, 300);
+  } else if (tool === 'layers') {
+    toggleSidebar(); showTab('layers');
+  } else if (tool === 'table') {
+    toggleSidebar(); showTab('table');
+  } else {
+    var sb = document.getElementById('sidebar');
+    if (sb && sb.classList.contains('open')) closeSidebar();
+  }
+}
+
+// -- Attribute table -----------------------------------------------------------
+function buildTable(idx, page) {
+  var lyr   = LAYERS[idx];
+  var feats = lyr.geojson.features;
+  var twrap = document.getElementById('twrap');
+  if (!feats || !feats.length) {
+    twrap.innerHTML = '<div style="padding:10px;color:#94a3b8">No features</div>';
+    return;
+  }
+  var flds  = lyr.fields || (feats[0] ? Object.keys(feats[0].properties||{}) : []);
+  var ps    = 100;
+  var total = feats.length;
+  var pages = Math.ceil(total / ps);
+  page = Math.max(0, Math.min(page, pages - 1));
+  var start = page * ps;
+  var end   = Math.min(start + ps, total);
+
+  function pgBtn(lbl, pg, dis) {
+    return '<button class="pgbtn" onclick="buildTable('+idx+','+pg+')"'+(dis?' disabled':'')+'>'+lbl+'</button>';
+  }
+  function pgBar() {
+    return '<div class="pgbar">'+
+      '<span class="pglbl">'+(start+1)+'-'+end+' / '+total.toLocaleString()+'</span>'+
+      '<span style="margin-left:auto;display:flex;gap:3px">'+
+      pgBtn('&laquo;',0,page===0)+pgBtn('&lsaquo; Prev',page-1,page===0)+
+      '<span class="pglbl">Page '+(page+1)+'/'+pages+'</span>'+
+      pgBtn('Next &rsaquo;',page+1,page>=pages-1)+pgBtn('&raquo;',pages-1,page>=pages-1)+
+      '</span></div>';
+  }
+
+  var h = pgBar()+'<table><thead><tr>';
+  flds.forEach(function(f) { h += '<th>'+escHtml(f)+'</th>'; });
+  h += '</tr></thead><tbody>';
+  feats.slice(start, end).forEach(function(feat, i) {
+    var ri = start + i;
+    h += '<tr onclick="zoomRow('+idx+','+ri+')">';
+    flds.forEach(function(f) {
+      var v = feat.properties ? feat.properties[f] : '';
+      v = (v === null || v === undefined) ? '' : String(v);
+      h += '<td title="'+escHtml(v)+'">'+escHtml(v)+'</td>';
+    });
+    h += '</tr>';
+  });
+  h += '</tbody></table>'+pgBar();
+  twrap.innerHTML = h;
+}
+
+function zoomRow(li, fi) {
+  var feat = LAYERS[li].geojson.features[fi];
+  if (!feat) return;
+  var col = (LAYERS[li].style && LAYERS[li].style.color) ? LAYERS[li].style.color : '#1e64c8';
+  var l   = gLayers[li].getLayers()[fi];
+  if (l && map) {
+    try {
+      if (l.getBounds) map.fitBounds(l.getBounds(), {maxZoom:14});
+      else if (l.getLatLng) map.setView(l.getLatLng(), 14);
+    } catch(e) {}
+    showFI([{name:LAYERS[li].name, color:col, props:feat.properties}]);
+    if (isMobile) closeSidebar();
+  }
+}
+
+// -- Search --------------------------------------------------------------------
+function doSearch(q) {
+  var res  = document.getElementById('sres');
+  var info = document.getElementById('sinfo');
+  if (!q || q.length < 2) {
+    res.style.display = 'none';
+    info.textContent  = 'Search across all layers';
+    return;
+  }
+  var ql = q.toLowerCase(), matches = [];
+  for (var fi = 0; fi < allFeats.length && matches.length < 50; fi++) {
+    var f = allFeats[fi], props = f.props || {}, keys = Object.keys(props);
+    for (var ki = 0; ki < keys.length; ki++) {
+      var v = props[keys[ki]];
+      if (v !== null && v !== undefined && String(v).toLowerCase().indexOf(ql) !== -1) {
+        matches.push({name:f.name,color:f.color,props:f.props,mk:keys[ki],mv:String(v),ll:f.ll});
+        break;
+      }
+    }
+  }
+  res._m = matches;
+  if (!matches.length) {
+    res.innerHTML = '<div class="sitem">No results found</div>';
+    res.style.display = 'block';
+    info.textContent = 'No matches';
+    return;
+  }
+  var h = '';
+  matches.forEach(function(m, i) {
+    h += '<div class="sitem" onclick="goSearch('+i+')">'+
+         '<div>'+escHtml(m.mk)+': <b>'+escHtml(m.mv)+'</b></div>'+
+         '<div class="slyr" style="color:'+m.color+'">&#9679; '+escHtml(m.name)+'</div></div>';
+  });
+  res.innerHTML = h;
+  res.style.display = 'block';
+  info.textContent = matches.length+' result(s)';
+}
+
+function goSearch(i) {
+  var m = document.getElementById('sres')._m[i];
+  if (!m || !map) return;
+  try {
+    if (m.ll.getBounds) map.fitBounds(m.ll.getBounds(), {maxZoom:14});
+    else if (m.ll.getLatLng) map.setView(m.ll.getLatLng(), 14);
+    showFI([{name:m.name,color:m.color,props:m.props}]);
+    if (isMobile) closeSidebar();
+  } catch(e) {}
+  document.getElementById('sres').style.display = 'none';
+}
+
+// -- Share / QR ------------------------------------------------------------------
+var _localWifiUrl = window._localWifiUrl || null;
+var _publicShareUrl = window._publicShareUrl || null;
+
+function selectShareOption(opt) {
+  document.getElementById('qr-menu').style.display = 'none';
+  document.getElementById('qr-opt-wifi').style.display = 'none';
+  document.getElementById('qr-opt-public').style.display = 'none';
+  document.getElementById('qr-opt-github').style.display = 'none';
+
+  if (opt === 'wifi') {
+    document.getElementById('qr-opt-wifi').style.display = 'block';
+    if (_localWifiUrl) {
+      document.getElementById('wifi-not-ready').style.display = 'none';
+      document.getElementById('wifi-ready').style.display = 'block';
+      document.getElementById('wifi-url').value = _localWifiUrl;
+      showQRCodeOnCanvas(_localWifiUrl, 'wifi-qr-canvas');
+    } else {
+      document.getElementById('wifi-not-ready').style.display = 'block';
+      document.getElementById('wifi-ready').style.display = 'none';
+    }
+  } else if (opt === 'public') {
+    document.getElementById('qr-opt-public').style.display = 'block';
+    if (_publicShareUrl) {
+      document.getElementById('pub-upload-btn-box').style.display = 'none';
+      document.getElementById('qr-progress-box').style.display = 'none';
+      document.getElementById('qr-success').style.display = 'block';
+      document.getElementById('qr-url').value = _publicShareUrl;
+      showQRCodeOnCanvas(_publicShareUrl, 'qr-canvas');
+    } else {
+      document.getElementById('pub-upload-btn-box').style.display = 'block';
+      document.getElementById('qr-progress-box').style.display = 'none';
+      document.getElementById('qr-success').style.display = 'none';
+      document.getElementById('qr-error').style.display = 'none';
+    }
+  } else if (opt === 'github') {
+    document.getElementById('qr-opt-github').style.display = 'block';
+    document.getElementById('gh-form').style.display = 'block';
+    document.getElementById('gh-progress').style.display = 'none';
+    document.getElementById('gh-success').style.display = 'none';
+    document.getElementById('gh-error').style.display = 'none';
+    try {
+      var savedToken = localStorage.getItem('iwv_github_token');
+      if (savedToken) {
+        document.getElementById('gh-token').value = savedToken;
+      }
+      var localBase = getLocalServerBase();
+      if (localBase) {
+        fetch(localBase + '/api/get_token')
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          if (d.token) {
+            document.getElementById('gh-token').value = d.token;
+            localStorage.setItem('iwv_github_token', d.token);
+          }
+        }).catch(function(){});
+      }
+    } catch(e) {}
+  }
+}
+
+function backToShareMenu() {
+  document.getElementById('qr-menu').style.display = 'block';
+  document.getElementById('qr-opt-wifi').style.display = 'none';
+  document.getElementById('qr-opt-public').style.display = 'none';
+  document.getElementById('qr-opt-github').style.display = 'none';
+}
+
+function openShare() {
+  var m = document.getElementById('qrmodal');
+  if (!m) return;
+  backToShareMenu();
+  m.style.display = 'flex';
+}
+
+function getLocalServerBase() {
+  if (window._localWifiUrl) {
+    try {
+      var urlObj = new URL(window._localWifiUrl);
+      return urlObj.origin;
+    } catch(e) {}
+  }
+  if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+    return window.location.origin;
+  }
+  return "";
+}
+
+function generateQR() {
+  document.getElementById('pub-upload-btn-box').style.display = 'none';
+  var progBox = document.getElementById('qr-progress-box');
+  var progText = document.getElementById('qr-progress-text');
+  var errBox = document.getElementById('qr-error');
+  
+  progBox.style.display = 'block';
+  errBox.style.display = 'none';
+  progText.textContent = 'Uploading map... please wait';
+
+  var docClone = document.documentElement.cloneNode(true);
+  var mapDiv = docClone.querySelector('#map');
+  if(mapDiv) {
+    var bmw = mapDiv.querySelector('#bmwrap');
+    mapDiv.innerHTML = '';
+    if(bmw) mapDiv.appendChild(bmw);
+    mapDiv._leaflet_id = null;
+    delete mapDiv._leaflet_id;
+  }
+  var fiEl = docClone.querySelector('#fi');
+  if(fiEl) { fiEl.className = 'fi'; fiEl.style.display = ''; }
+  var toEmpty = ['lctrl','sctrl','tlsel','twrap','fibody','sres'];
+  toEmpty.forEach(function(id){
+    var el = docClone.querySelector('#' + id);
+    if(el) el.innerHTML = '';
+  });
+  var dtClone = docClone.querySelector('#desk-toggle');
+  if(dtClone) dtClone.parentNode.removeChild(dtClone);
+  var sbClone = docClone.querySelector('#sidebar');
+  if(sbClone) { sbClone.style.transform=''; sbClone.classList.remove('open'); }
+  var mapClone = docClone.querySelector('#map');
+  if(mapClone) mapClone.style.left = '260px';
+  var coordClone = docClone.querySelector('#coord');
+  if(coordClone) coordClone.style.left = '260px';
+  var modal = docClone.querySelector('#qrmodal');
+  if(modal) modal.style.display = 'none';
+  var fi = docClone.querySelector('#fi');
+  if(fi) { fi.className = 'fi'; fi.style.display = ''; }
+
+  var html = docClone.outerHTML;
+  var blob = new Blob([html], {type:'text/html'});
+  var sizeMB = (blob.size / 1024 / 1024).toFixed(1);
+  
+  var localBase = getLocalServerBase();
+  if (localBase) {
+    progText.textContent = 'Uploading ' + sizeMB + ' MB via Python backend...';
+    fetch(localBase + '/api/upload_public', {
+      method: 'POST',
+      body: html
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d.error) { throw new Error(d.error); }
+      var url = d.url;
+      if(url){
+        _publicShareUrl = url;
+        progBox.style.display = 'none';
+        document.getElementById('qr-success').style.display = 'block';
+        document.getElementById('qr-url').value = url;
+        showQRCodeOnCanvas(url, 'qr-canvas');
+      } else { throw new Error('No URL returned'); }
+    })
+    .catch(function(err){
+      progBox.style.display = 'none';
+      errBox.innerHTML = '<b>Upload failed.</b><br><br>' + err.message;
+      errBox.style.display = 'block';
+    });
+  } else {
+    progText.textContent = 'Uploading ' + sizeMB + ' MB to PageDrop...';
+    var reader = new FileReader();
+    reader.readAsText(blob);
+    reader.onloadend = function() {
+      var htmlContent = reader.result;
+      fetch('https://pagedrop.io/api/upload', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({html: htmlContent, ttl: '3d'})
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        var url = d.url || (d.data && d.data.url);
+        if(url){
+          _publicShareUrl = url;
+          progBox.style.display = 'none';
+          document.getElementById('qr-success').style.display = 'block';
+          document.getElementById('qr-url').value = url;
+          showQRCodeOnCanvas(url, 'qr-canvas');
+        } else { throw new Error(); }
+      })
+      .catch(function(){
+        progBox.style.display = 'none';
+        errBox.innerHTML = '<b>Upload failed.</b><br><br>Browser origin policies block direct uploads from local files. Keep QGIS open when using this button.';
+        errBox.style.display = 'block';
+      });
+    };
+  }
+}
+
+function showQRCodeOnCanvas(url, canvasId) {
+  var canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  canvas.innerHTML = '';
+
+  var img = document.createElement('img');
+  img.style.cssText = 'width:180px;height:180px;display:block;margin:0 auto 10px;border-radius:8px;border:1px solid #e2e8f0';
+  img.alt = 'QR Code';
+
+  var sources = [
+    'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(url),
+    'https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=' + encodeURIComponent(url),
+    'https://quickchart.io/qr?text=' + encodeURIComponent(url) + '&size=200'
+  ];
+  var srcIdx = 0;
+
+  img.onerror = function() {
+    srcIdx++;
+    if(srcIdx < sources.length) {
+      img.src = sources[srcIdx];
+    } else {
+      canvas.innerHTML = '<div style="background:#eff6ff;border:1px solid #bfdbfe;' +
+        'border-radius:8px;padding:14px;color:#1e40af;font-size:.75rem;text-align:center">' +
+        'QR image blocked by network.<br><b>Use the link below.</b></div>';
+    }
+  };
+
+  img.onload = function() {
+    img.style.display = 'block';
+  };
+
+  img.src = sources[0];
+  canvas.appendChild(img);
+}
+
+function copyText(inputId, btnId) {
+  var url = document.getElementById(inputId).value;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(function() {
+      var btn = document.getElementById(btnId);
+      if (btn) {
+        var orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = orig; }, 2000);
+      }
+    }).catch(function() {
+      window.prompt('Copy link:', url);
+    });
+  } else {
+    var input = document.getElementById(inputId);
+    input.select();
+    input.setSelectionRange(0, 99999);
+    try {
+      document.execCommand('copy');
+      var btn = document.getElementById(btnId);
+      if (btn) {
+        var orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = orig; }, 2000);
+      }
+    } catch (err) {
+      window.prompt('Copy link:', url);
+    }
+  }
+}
+
+function b64EncodeUnicode(str) {
+  return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
+    function toSolidBytes(match, p1) {
+      return String.fromCharCode('0x' + p1);
+  }));
+}
+
+function publishToGithubFromBrowser() {
+  var token = document.getElementById('gh-token').value.trim();
+  if (!token) {
+    alert("Please enter a GitHub Personal Access Token.");
+    return;
+  }
+  try {
+    localStorage.setItem('iwv_github_token', token);
+  } catch(e) {}
+
+  var form = document.getElementById('gh-form');
+  var prog = document.getElementById('gh-progress');
+  var progText = document.getElementById('gh-progress-text');
+  var success = document.getElementById('gh-success');
+  var errBox = document.getElementById('gh-error');
+
+  form.style.display = 'none';
+  prog.style.display = 'block';
+  errBox.style.display = 'none';
+  success.style.display = 'none';
+
+  progText.textContent = 'Preparing upload payload...';
+
+  // Prepare Base64 payload
+  var docClone = document.documentElement.cloneNode(true);
+  var mapDiv = docClone.querySelector('#map');
+  if(mapDiv) {
+    var bmw = mapDiv.querySelector('#bmwrap');
+    mapDiv.innerHTML = '';
+    if(bmw) mapDiv.appendChild(bmw);
+    mapDiv._leaflet_id = null;
+    delete mapDiv._leaflet_id;
+  }
+  var fiEl = docClone.querySelector('#fi');
+  if(fiEl) { fiEl.className = 'fi'; fiEl.style.display = ''; }
+  var toEmpty = ['lctrl','sctrl','tlsel','twrap','fibody','sres'];
+  toEmpty.forEach(function(id){
+    var el = docClone.querySelector('#' + id);
+    if(el) el.innerHTML = '';
+  });
+  var dtClone = docClone.querySelector('#desk-toggle');
+  if(dtClone) dtClone.parentNode.removeChild(dtClone);
+  var sbClone = docClone.querySelector('#sidebar');
+  if(sbClone) { sbClone.style.transform=''; sbClone.classList.remove('open'); }
+  var mapClone = docClone.querySelector('#map');
+  if(mapClone) mapClone.style.left = '260px';
+  var coordClone = docClone.querySelector('#coord');
+  if(coordClone) coordClone.style.left = '260px';
+  var modal = docClone.querySelector('#qrmodal');
+  if(modal) modal.style.display = 'none';
+  var fi = docClone.querySelector('#fi');
+  if(fi) { fi.className = 'fi'; fi.style.display = ''; }
+
+  var htmlContent = docClone.outerHTML;
+
+  var localBase = getLocalServerBase();
+  if (localBase) {
+    progText.textContent = 'Uploading via Python backend (no CORS limits)...';
+    fetch(localBase + '/api/upload_github', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({token: token, html: htmlContent})
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d.error) throw new Error(d.error);
+      var url = d.url;
+      prog.style.display = 'none';
+      success.style.display = 'block';
+      document.getElementById('gh-url').value = url;
+      showQRCodeOnCanvas(url, 'gh-qr-canvas');
+    })
+    .catch(function(e){
+      prog.style.display = 'none';
+      form.style.display = 'block';
+      errBox.textContent = e.message || 'Upload failed.';
+      errBox.style.display = 'block';
+    });
+  } else {
+    progText.textContent = 'Authenticating with GitHub...';
+    var owner = '';
+    var repo = 'iwv-maps';
+    var branch = 'main';
+
+    fetch('https://api.github.com/user', {
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Accept': 'application/vnd.github+json'
+      }
+    })
+    .then(function(r) {
+      if (r.status !== 200) throw new Error("Invalid GitHub Token.");
+      return r.json();
+    })
+    .then(function(user) {
+      owner = user.login;
+      progText.textContent = 'Checking repository "iwv-maps"...';
+      return fetch('https://api.github.com/repos/' + owner + '/' + repo, {
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Accept': 'application/vnd.github+json'
+        }
+      });
+    })
+    .then(function(r) {
+      if (r.status === 404) {
+        progText.textContent = 'Creating repository "iwv-maps" on GitHub...';
+        return fetch('https://api.github.com/user/repos', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json',
+            'Accept': 'application/vnd.github+json'
+          },
+          body: JSON.stringify({
+            name: repo,
+            private: false,
+            auto_init: true,
+            description: 'Maps shared from Instant WebGIS Viewer'
+          })
+        });
+      } else if (r.status === 200) {
+        return r.json();
+      } else {
+        throw new Error("Repository check failed.");
+      }
+    })
+    .then(function() {
+      var b64Content = b64EncodeUnicode(htmlContent);
+      var ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 15);
+      var filename = 'maps/map-' + ts + '.html';
+
+      progText.textContent = 'Uploading map to GitHub...';
+      return fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/' + filename, {
+        method: 'PUT',
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json',
+          'Accept': 'application/vnd.github+json'
+        },
+        body: JSON.stringify({
+          message: 'Add map ' + ts,
+          content: b64Content,
+          branch: branch
+        })
+      });
+    })
+    .then(function(r) {
+      if (r.status !== 200 && r.status !== 201) throw new Error("Upload failed.");
+      return r.json();
+    })
+    .then(function(commit) {
+      var path = commit.content.path;
+      var url = 'https://raw.githack.com/' + owner + '/' + repo + '/' + branch + '/' + path;
+      
+      prog.style.display = 'none';
+      success.style.display = 'block';
+      document.getElementById('gh-url').value = url;
+      showQRCodeOnCanvas(url, 'gh-qr-canvas');
+    })
+    .catch(function(e) {
+      prog.style.display = 'none';
+      form.style.display = 'block';
+      errBox.textContent = e.message || 'GitHub failed.';
+      errBox.style.display = 'block';
+    });
+  }
+}
+
+var _qrm = document.getElementById('qrmodal');
+if(_qrm) _qrm.addEventListener('click', function(e){
+  if(e.target===this) this.style.display='none';
+});
+
+// -- App Async Initialization -------------------------------------------------
+async function startApp() {
+  // 1) Read and decompress data
+  try {
+    var optsEl = document.getElementById('qsm-opts');
+    if (optsEl) OPTIONS = JSON.parse(optsEl.textContent || '{}');
+  } catch(e) {}
+
+  var gzipEl = document.getElementById('qsm-data-gzip');
+  if (gzipEl) {
+    try {
+      LAYERS = await decompressGeoJSON(gzipEl.textContent.trim());
+    } catch(e) {
+      console.error("Decompression failed", e);
+    }
+  } else {
+    var rawEl = document.getElementById('qsm-data');
+    if (rawEl) {
+      try { LAYERS = JSON.parse(rawEl.textContent || '[]'); } catch(e) {}
+    }
+  }
+
+  console.log('QSM: LAYERS count =', LAYERS.length, LAYERS.map(function(l){return l.name;}));
+
+  // 2) Sidebar sync
+  _syncSidebarState();
+
+  // 3) Init map
+  var mapEl = document.getElementById('map');
+  if (mapEl) {
+    var kids = mapEl.querySelectorAll('.leaflet-pane, .leaflet-control-container, svg');
+    if (kids.length > 0) {
+      kids.forEach(function(k) { k.parentNode && k.parentNode.removeChild(k); });
+      delete mapEl._leaflet_id;
+      mapEl.removeAttribute('data-leaflet-id');
+    }
+  }
+
+  map = L.map('map', {
+    center:[20,78], zoom:5,
+    tap: true,
+    tapTolerance: 20,
+    touchZoom: true,
+    bounceAtZoomLimits: false,
+    zoomControl: true
+  });
+  window.MAP = map;
+  curBM = BMS[0]; curBM.addTo(map);
+  L.control.scale({imperial:false, position:'bottomright'}).addTo(map);
+
+  // 4) Desktop sidebar toggle button
+  if(!document.getElementById('desk-toggle')) {
+    var btn = document.createElement('button');
+    btn.id        = 'desk-toggle';
+    btn.innerHTML = '&#9664;';
+    btn.title     = 'Collapse sidebar';
+    btn.style.cssText = 'position:fixed;top:50%;left:260px;transform:translate(-50%,-50%);z-index:2100;width:20px;height:48px;background:#1e3a8a;color:white;border:none;border-radius:0 6px 6px 0;cursor:pointer;font-size:10px;line-height:1;padding:0;box-shadow:2px 0 6px rgba(0,0,0,.3);transition:left .25s ease;display:flex;align-items:center;justify-content:center';
+    btn.onclick = function(){ toggleSidebar(); };
+    document.body.appendChild(btn);
+  }
+
+  map.on('mousemove', function(e) {
+    var el = document.getElementById('coord');
+    if (el) el.textContent =
+      'Lat: ' + e.latlng.lat.toFixed(6) +
+      '   Lng: ' + e.latlng.lng.toFixed(6) +
+      '   Zoom: ' + map.getZoom();
+  });
+  map.on('click', function() { closeFI(); });
+
+  // 5) Clear any pre-rendered content
+  var lctrl = document.getElementById('lctrl');
+  var sctrl = document.getElementById('sctrl');
+  var tlsel = document.getElementById('tlsel');
+  var twrap = document.getElementById('twrap');
+  if(lctrl) lctrl.innerHTML = '';
+  if(sctrl) sctrl.innerHTML = '';
+  if(tlsel) tlsel.innerHTML = '';
+  if(twrap) twrap.innerHTML = '';
+
+  // 6) Deduplicate layers
+  var seen = {}, clean = [];
+  for(var i=0;i<LAYERS.length;i++){
+    if(!seen[LAYERS[i].name]){ seen[LAYERS[i].name]=true; clean.push(LAYERS[i]); }
+  }
+  LAYERS = clean;
+
+  var _seen = {};
+  var _unique = [];
+  for (var _i = 0; _i < LAYERS.length; _i++) {
+    var _key = LAYERS[_i].name + '_' + (LAYERS[_i].count || 0);
+    if (!_seen[_key]) {
+      _seen[_key] = true;
+      _unique.push(LAYERS[_i]);
+    }
+  }
+  LAYERS = _unique;
+
+  // 7) Build layers
+  var _renderedNames = {};
+  LAYERS.forEach(function(lyr, idx) {
+    if(_renderedNames[lyr.name]) { return; }
+    _renderedNames[lyr.name] = true;
+
+    var col = (lyr.style && lyr.style.color) ? lyr.style.color : PALETTE[idx % PALETTE.length];
+    var op  = (lyr.style && lyr.style.opacity) ? parseFloat(lyr.style.opacity) : 0.7;
+    if(isNaN(op) || op < 0.1) op = 0.7;
+
+    // RASTER layer
+    if(lyr.type === 'raster' && lyr.image && lyr.bounds) {
+      var bnds = [[lyr.bounds[0], lyr.bounds[1]], [lyr.bounds[2], lyr.bounds[3]]];
+      var overlay = L.imageOverlay(lyr.image, bnds, {opacity: op, interactive: true}).addTo(map);
+      gLayers.push(overlay);
+      (function(lyrRef, ovRef) {
+        var _canvas = document.createElement('canvas');
+        var _img    = new Image();
+        _img.src    = lyrRef.image;
+        _img.onload = function() {
+          _canvas.width  = _img.naturalWidth;
+          _canvas.height = _img.naturalHeight;
+          _canvas.getContext('2d').drawImage(_img, 0, 0);
+        };
+        ovRef.on('click', function(e) {
+          L.DomEvent.stopPropagation(e);
+          var lat = e.latlng.lat;
+          var lng = e.latlng.lng;
+          var minLat = lyrRef.bounds[0], minLng = lyrRef.bounds[1];
+          var maxLat = lyrRef.bounds[2], maxLng = lyrRef.bounds[3];
+          var px = Math.floor(((lng - minLng) / (maxLng - minLng)) * _canvas.width);
+          var py = Math.floor(((maxLat - lat) / (maxLat - minLat)) * _canvas.height);
+          var props = {'Latitude': lat.toFixed(6), 'Longitude': lng.toFixed(6)};
+          try {
+            var ctx = _canvas.getContext('2d');
+            var px2 = Math.max(0, Math.min(px, _canvas.width  - 1));
+            var py2 = Math.max(0, Math.min(py, _canvas.height - 1));
+            var pxData = ctx.getImageData(px2, py2, 1, 1).data;
+            var r = pxData[0], g = pxData[1], b = pxData[2], a = pxData[3];
+            if (a === 0) props['Pixel Value'] = 'No Data';
+            else if (r === g && g === b) { props['DN Value'] = r; props['Reflectance'] = (r / 255.0).toFixed(4); }
+            else { props['Red Band'] = r; props['Green Band'] = g; props['Blue Band'] = b; }
+          } catch(ex) { props['Pixel Value'] = 'Unable to read'; }
+          props['Type'] = 'Raster Layer';
+          props['CRS'] = (lyrRef.stats && lyrRef.stats.crs) || 'Unknown';
+          showFI([{name: lyrRef.name, color: '#888888', props: props}]);
+        });
+      })(lyr, overlay);
+      try { var rb=L.latLngBounds(bnds); if(rb.isValid()) bounds=bounds?bounds.extend(rb):rb; } catch(e){}
+      var rcard = document.createElement('div');
+      rcard.className = 'lcard';
+      rcard.innerHTML =
+        '<div class="lhead"><div class="ldot" style="background:#888"></div>' +
+        '<span class="lname" title="'+escHtml(lyr.name)+'">'+escHtml(lyr.name)+'</span>' +
+        '<span class="ltag">Raster</span></div>' +
+        '<div class="lrow"><span class="llbl">Visible</span>' +
+        '<label class="tog"><input type="checkbox" id="v'+idx+'" checked><span class="sl"></span></label></div>' +
+        '<div class="oprow"><span class="oplbl">Opacity</span>' +
+        '<input type="range" min="0" max="1" step="0.05" value="1" id="o'+idx+'">' +
+        '<span class="opval" id="ov'+idx+'">100%</span></div>';
+      document.getElementById('lctrl').appendChild(rcard);
+      (function(i, ov, c){
+        document.getElementById('v'+i).onchange = function(){
+          if(this.checked){map.addLayer(ov);c.style.opacity='1';}
+          else{map.removeLayer(ov);c.style.opacity='0.4';}
+        };
+        document.getElementById('o'+i).oninput = function(){
+          var v=parseFloat(this.value);
+          ov.setOpacity(v);
+          document.getElementById('ov'+i).textContent=Math.round(v*100)+'%';
+        };
+      })(idx, overlay, rcard);
+      return;
+    }
+
+    // VECTOR layer
+    var gl;
+    gl = L.geoJSON(lyr.geojson, {
+      style: function() {
+        return {color:col, weight:2, fillColor:col, fillOpacity:0.5, opacity:1};
+      },
+      pointToLayer: function(f, ll) {
+        return L.circleMarker(ll, {
+          radius: isMobile ? 14 : 6,
+          fillColor:col, color:'#fff', weight:1.5, fillOpacity:0.8
+        });
+      },
+      onEachFeature: function(feat, layer) {
+        allFeats.push({lidx:idx, name:lyr.name, color:col, props:feat.properties, ll:layer});
+        layer.on('click', function(e) {
+          L.DomEvent.stopPropagation(e);
+          showFI([{name:lyr.name, color:col, props:feat.properties}]);
+        });
+        if (!isMobile) {
+          layer.on('mouseover', function() {
+            if (layer.setStyle) layer.setStyle({weight:3, fillOpacity:0.8});
+            if (layer.bringToFront) layer.bringToFront();
+          });
+          layer.on('mouseout', function() {
+            if (gl) gl.resetStyle(layer);
+          });
+        }
+      }
+    }).addTo(map);
+    gLayers.push(gl);
+
+    try {
+      var b = gl.getBounds();
+      if (b.isValid()) bounds = bounds ? bounds.extend(b) : b;
+    } catch(e) {}
+
+    var card  = document.createElement('div');
+    card.className = 'lcard';
+    card.innerHTML =
+      '<div class="lhead">' +
+        '<div class="ldot" style="background:'+col+'"></div>' +
+        '<span class="lname" title="'+escHtml(lyr.name)+'">'+escHtml(lyr.name)+'</span>' +
+        '<span class="ltag">'+escHtml((lyr.stats&&lyr.stats.geometry_type)||'Vector')+'</span>' +
+      '</div>' +
+      '<div class="lrow">' +
+        '<span class="llbl">Visible</span>' +
+        '<label class="tog"><input type="checkbox" id="v'+idx+'" checked><span class="sl"></span></label>' +
+      '</div>' +
+      '<div class="oprow">' +
+        '<span class="oplbl">Opacity</span>' +
+        '<input type="range" min="0" max="1" step="0.05" value="1" id="o'+idx+'">' +
+        '<span class="opval" id="ov'+idx+'">100%</span>' +
+      '</div>' +
+      '<div class="lrow">' +
+        '<span class="llbl">Colour</span>' +
+        '<input type="color" id="c'+idx+'" value="'+col+'" style="width:36px;height:24px;border:none;cursor:pointer;border-radius:4px;padding:0">' +
+      '</div>' +
+      '<div class="lcnt">'+Number(lyr.count||0).toLocaleString()+' features</div>';
+    document.getElementById('lctrl').appendChild(card);
+
+    (function(i, g, c) {
+      document.getElementById('v'+i).onchange = function() {
+        if (this.checked) { map.addLayer(g); c.style.opacity='1'; }
+        else { map.removeLayer(g); c.style.opacity='0.4'; }
+      };
+      document.getElementById('o'+i).oninput = function() {
+        var v = parseFloat(this.value);
+        g.setStyle({fillOpacity:v*0.5, opacity:v});
+        document.getElementById('ov'+i).textContent = Math.round(v*100)+'%';
+      };
+      var cp = document.getElementById('c'+i);
+      if(cp) cp.addEventListener('input', function(){
+        var nc = this.value;
+        g.eachLayer(function(l){ if(l.setStyle) l.setStyle({color:nc, fillColor:nc}); });
+        var dot = card.querySelector('.ldot');
+        if(dot) dot.style.background = nc;
+      });
+    })(idx, gl, card);
+
+    var st = lyr.stats || {};
+    var sh = '<div class="sbox">' +
+      '<div class="stitle" style="color:'+col+'">'+escHtml(lyr.name)+'</div>' +
+      '<div class="srow"><span class="sk">Type</span><span class="sv">'+escHtml(st.geometry_type||'Vector')+'</span></div>' +
+      '<div class="srow"><span class="sk">Features</span><span class="sv">'+Number(st.feature_count||lyr.count||0).toLocaleString()+'</span></div>' +
+      '<div class="srow"><span class="sk">Fields</span><span class="sv">'+((st.fields||[]).length)+'</span></div>' +
+      '<div class="srow"><span class="sk">CRS</span><span class="sv">'+escHtml(st.crs||'WGS84')+'</span></div>';
+    if (st.total_length_km != null)
+      sh += '<div class="srow"><span class="sk">Length</span><span class="sv">'+Number(st.total_length_km).toLocaleString()+' km</span></div>';
+    if (st.total_area_km2 != null)
+      sh += '<div class="srow"><span class="sk">Area</span><span class="sv">'+Number(st.total_area_km2).toLocaleString()+' km&#178;</span></div>';
+    sh += '</div>';
+    document.getElementById('sctrl').innerHTML += sh;
+
+    var tb = document.createElement('button');
+    tb.className = 'tlbtn'; tb.textContent = lyr.name; tb.style.background = col;
+    (function(i) { tb.onclick = function() { buildTable(i, 0); }; })(idx);
+    document.getElementById('tlsel').appendChild(tb);
+    if (idx === 0) buildTable(0, 0);
+  });
+
+  if (bounds && bounds.isValid()) map.fitBounds(bounds, {padding:[20,20]});
+  setTimeout(function() { map.invalidateSize(); }, 300);
+}
+
+// Start application async
+window.addEventListener('DOMContentLoaded', startApp);
+</script><!-- Mobile bottom toolbar (hidden on desktop) -->
+<div class="mob-toolbar" id="mob-toolbar">
+  <button class="mtool active" id="mtool-info" onclick="setMobileTool('info')" title="Feature Info">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>
+    Info
+  </button>
+  <button class="mtool" id="mtool-search" onclick="setMobileTool('search')" title="Search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+    </svg>
+    Search
+  </button>
+  <button class="mtool" id="mtool-layers" onclick="setMobileTool('layers')" title="Layers">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline>
+    </svg>
+    Layers
+  </button>
+  <button class="mtool" id="mtool-table" onclick="setMobileTool('table')" title="Table">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="3" y1="15" x2="21" y2="15"></line><line x1="9" y1="3" x2="9" y2="21"></line><line x1="15" y1="3" x2="15" y2="21"></line>
+    </svg>
+    Table
+  </button>
+</div>
+
+<!-- QR Share Modal -->
+<div id="qrmodal" style="display: none; position: fixed; inset: 0px; background: rgba(0, 0, 0, 0.6); z-index: 9999; align-items: center; justify-content: center;">
+  <div style="background:white;border-radius:12px;padding:22px;width:90%;max-width:380px;
+    box-shadow:0 8px 40px rgba(0,0,0,.3);text-align:center">
+
+    <!-- Menu Selection -->
+    <div id="qr-menu" style="display: none;">
+      <h3 style="color:#1e293b;margin-bottom:12px;font-size:1.05rem">Share Map / Generate QR</h3>
+      <p style="color:#64748b;font-size:.8rem;margin-bottom:18px">Select how you want to share this map:</p>
+      
+      <button onclick="selectShareOption('wifi')" style="width:100%;background:#1e64c8;color:white;border:none;border-radius:8px;
+        padding:12px;cursor:pointer;font-size:.88rem;font-weight:700;margin-bottom:10px;text-align:left;display:flex;align-items:center;justify-content:space-between">
+        <span>📶 Share on Local WiFi (No Token)</span><span>→</span>
+      </button>
+      
+      <button onclick="selectShareOption('public')" style="width:100%;background:#0f766e;color:white;border:none;border-radius:8px;
+        padding:12px;cursor:pointer;font-size:.88rem;font-weight:700;margin-bottom:10px;text-align:left;display:flex;align-items:center;justify-content:space-between">
+        <span>🔗 Create Public Link (No Token)</span><span>→</span>
+      </button>
+      
+      <button onclick="selectShareOption('github')" style="width:100%;background:#24292f;color:white;border:none;border-radius:8px;
+        padding:12px;cursor:pointer;font-size:.88rem;font-weight:700;margin-bottom:16px;text-align:left;display:flex;align-items:center;justify-content:space-between">
+        <span>🐙 Publish to GitHub (Needs Token)</span><span>→</span>
+      </button>
+
+      <button onclick="document.getElementById('qrmodal').style.display='none'" style="width:100%;background:#f1f5f9;color:#64748b;border:none;border-radius:8px;
+        padding:9px;cursor:pointer;font-size:.82rem">Cancel</button>
+    </div>
+
+    <!-- Option: Local WiFi -->
+    <div id="qr-opt-wifi" style="display:none">
+      <h3 style="color:#1e293b;margin-bottom:10px;font-size:1rem">Share on Local WiFi</h3>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;font-size:.78rem;color:#334155;text-align:left;margin-bottom:14px;line-height:1.4">
+        <b>📶 Local WiFi sharing information:</b><br>
+        • This option lets you share your map locally on your network without uploading to the internet.<br>
+        • To open, make sure QGIS is open on your PC and your phone is connected to the same WiFi/Local Network.
+      </div>
+      <div id="wifi-not-ready" style="display:none;background:#fef3f2;border:1px solid #fecaca;border-radius:8px;padding:12px;font-size:.78rem;color:#b91c1c;text-align:left;margin-bottom:14px">
+        <b>Local WiFi server is not running.</b><br><br>
+        To share via local WiFi, make sure you open QGIS, load this map, and click <b>Share on Local WiFi</b> in the plugin first to start the server.
+      </div>
+      <div id="wifi-ready" style="display:none">
+        <p style="color:#64748b;font-size:.8rem;margin-bottom:10px">Scan QR code to open the map on your phone (must be on the same WiFi network):</p>
+        <div id="wifi-qr-canvas" style="margin:10px auto;text-align:center"></div>
+        <div style="font-size:.72rem;color:#64748b;margin-bottom:4px">Or share this URL:</div>
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <input id="wifi-url" readonly="" onclick="this.select()" style="flex:1;font-size:.7rem;padding:5px 8px;border:1px solid #e2e8f0;
+            border-radius:6px;background:#f8fafc;color:#334155">
+          <button id="wifi-copy-btn" onclick="copyText('wifi-url', 'wifi-copy-btn')" style="background:#1e64c8;color:white;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:.72rem">Copy</button>
+        </div>
+      </div>
+      <button onclick="backToShareMenu()" style="width:100%;background:#f1f5f9;color:#64748b;border:none;border-radius:8px;padding:9px;cursor:pointer;font-size:.82rem">Back</button>
+    </div>
+
+    <!-- Option: Public Link (No Token) -->
+    <div id="qr-opt-public" style="display:none">
+      <h3 style="color:#1e293b;margin-bottom:8px;font-size:1rem">Create Public Share Link</h3>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;font-size:.78rem;color:#334155;text-align:left;margin-bottom:14px;line-height:1.4">
+        <b>🔗 Public link sharing information:</b><br>
+        • This option uploads your map to PageDrop to generate a public link valid for 3 days.<br>
+        • <b>Note:</b> If the link does not load (for example, if PageDrop is blocked in your network), please go for Option 3.
+      </div>
+      
+      <div id="pub-upload-btn-box">
+        <button onclick="generateQR()" style="width:100%;background:#0f766e;color:white;border:none;border-radius:8px;
+          padding:11px;cursor:pointer;font-size:.9rem;font-weight:700;margin-bottom:12px">
+          Upload Map &amp; Generate QR
+        </button>
+      </div>
+
+      <div id="qr-progress-box" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;
+        border-radius:8px;padding:14px;margin-bottom:12px;color:#1e40af;font-size:.85rem">
+        <div style="font-size:1.4rem;margin-bottom:6px">⏳</div>
+        <div id="qr-progress-text">Uploading...</div>
+      </div>
+
+      <div id="qr-success" style="display:none">
+        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;
+          padding:8px;margin-bottom:10px;color:#16a34a;font-weight:700;font-size:.85rem">
+          Uploaded! Scan to open on mobile:
+        </div>
+        <div id="qr-canvas" style="margin:10px auto;text-align:center"></div>
+        <div id="qr-url-box" style="margin-top:10px">
+          <input id="qr-url" readonly="" onclick="this.select()" style="width:100%;font-size:.7rem;padding:6px;border:1px solid #e2e8f0;
+            border-radius:6px;background:#f8fafc;color:#334155;margin-bottom:6px">
+          <button id="qr-copy-btn" onclick="copyText('qr-url', 'qr-copy-btn')" style="width:100%;background:#0f766e;color:white;border:none;border-radius:6px;
+            padding:7px;cursor:pointer;font-size:.75rem">Copy Public Link</button>
+        </div>
+      </div>
+
+      <div id="qr-error" style="display:none;background:#fef3f2;border:1px solid #fecaca;border-radius:8px;
+        padding:12px;font-size:.8rem;color:#b91c1c;text-align:left;margin-bottom:12px">
+        <b>Upload failed.</b><br>
+        Browser origin policies block direct uploads from local files. For large maps or reliable sharing, use the QGIS export panel instead.
+      </div>
+
+      <button onclick="backToShareMenu()" style="width:100%;background:#f1f5f9;color:#64748b;border:none;border-radius:8px;padding:9px;cursor:pointer;font-size:.82rem;margin-top:8px">Back</button>
+    </div>
+
+    <!-- Option: GitHub (Needs Token) -->
+    <div id="qr-opt-github" style="display: block;">
+      <h3 style="color:#1e293b;margin-bottom:8px;font-size:1rem">Publish to GitHub</h3>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;font-size:.78rem;color:#334155;text-align:left;margin-bottom:14px;line-height:1.4;max-height:160px;overflow-y:auto">
+        <b>🐙 GitHub publishing information:</b><br>
+        1. Register for a GitHub account.<br>
+        2. Go to <a href="https://github.com/settings/tokens" target="_blank" style="color:#2563eb;text-decoration:underline">https://github.com/settings/tokens</a>.<br>
+        3. Click <b>Generate new token</b> and select <b>Generate new token (classic)</b>.<br>
+        4. Verify the security code which you receive in your mail.<br>
+        5. Enter a <b>Note</b> and set <b>Expiration</b> (which might be 7/30/60/90 days, custom, or no expiration). <i>Note: If the time period ends, you must repeat the entire process again.</i><br>
+        6. Select the <b>repo</b> checkbox.<br>
+        7. Click <b>Generate token</b> at the bottom, copy it, and paste it into the field below.<br>
+        • This token is valid until your selected time in the step above. Once the time period ends, repeat the process again and paste your new token here in the publish GitHub token input field.
+      </div>
+      
+      <div id="gh-form" style="display: none;">
+        <input id="gh-token" type="password" placeholder="Paste GitHub Token..." style="width:100%;font-size:.8rem;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;margin-bottom:10px;outline:none">
+        <button onclick="publishToGithubFromBrowser()" style="width:100%;background:#24292f;color:white;border:none;border-radius:8px;
+          padding:10px;cursor:pointer;font-size:.84rem;font-weight:700;margin-bottom:12px">
+          Publish Map
+        </button>
+      </div>
+
+      <div id="gh-progress" style="display: block; background: rgb(241, 245, 249); border: 1px solid rgb(226, 232, 240); border-radius: 8px; padding: 12px; margin-bottom: 12px; font-size: 0.8rem; color: rgb(71, 85, 105);">
+        <div style="font-size:1.2rem;margin-bottom:4px">⏳</div>
+        <div id="gh-progress-text">Preparing upload payload...</div>
+      </div>
+
+      <div id="gh-success" style="display:none">
+        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;
+          padding:8px;margin-bottom:10px;color:#16a34a;font-weight:700;font-size:.85rem">
+          Published to GitHub! Scan QR:
+        </div>
+        <div id="gh-qr-canvas" style="margin:10px auto;text-align:center"></div>
+        <input id="gh-url" readonly="" onclick="this.select()" style="width:100%;font-size:.7rem;padding:6px;border:1px solid #e2e8f0;
+          border-radius:6px;background:#f8fafc;color:#334155;margin-bottom:6px">
+        <button id="gh-copy-btn" onclick="copyText('gh-url', 'gh-copy-btn')" style="width:100%;background:#24292f;color:white;border:none;border-radius:6px;
+          padding:7px;cursor:pointer;font-size:.75rem;margin-bottom:12px">Copy Link</button>
+      </div>
+
+      <div id="gh-error" style="display:none;background:#fef3f2;border:1px solid #fecaca;border-radius:8px;
+        padding:12px;font-size:.78rem;color:#b91c1c;text-align:left;margin-bottom:12px">
+      </div>
+
+      <button onclick="backToShareMenu()" style="width:100%;background:#f1f5f9;color:#64748b;border:none;border-radius:8px;padding:9px;cursor:pointer;font-size:.82rem">Back</button>
+    </div>
+
+  </div>
+</div>
+
+  
+
+<script>
+window._localWifiUrl = "http://192.168.178.25:8080/VLproefkaart.html";
+</script>
+
+</body></html>
